@@ -8,6 +8,7 @@ CMDR Anjin 2016
 	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
 	<title>Elite Map v0.1b - Canonn Archeology</title>
 	<link href='https://fonts.googleapis.com/css?family=Coda' rel='stylesheet' type='text/css'>
+	<link rel="icon" href="favicon.ico" type="image/png" />
 	<style>
 		html, body { margin: 0; padding: 0; background-color: #130909; font-family: 'Coda', sans-serif; }
 		.window { position: absolute; background-color: #DDDDDD; padding: 4px; border-radius: 1px; }
@@ -152,8 +153,7 @@ CMDR Anjin 2016
 			toMarkerImage.src = 'images/toMarker.png';
 			fromMarkerImage.src = 'images/fromMarker.png';
 			loadingPatternImage.src = 'images/loading.png';
-			loadingPattern = ctx.createPattern(loadingPatternImage,'repeat');
-			
+						
 			cw = get('#contextWindow');
 			vx1 = vy1 = -50;
 			vx2 = vy2 = 50;
@@ -267,6 +267,7 @@ CMDR Anjin 2016
 							ctx.drawImage(imageCache[imageKey], bx, by, sw+1, sh+1);
 						}
 						else {
+							loadingPattern = ctx.createPattern(loadingPatternImage,'repeat');
 							ctx.fillStyle = loadingPattern;
 							ctx.fillRect(bx, by, sw, sh);
 							setTimeout(loadedRefresh, 1000); // try again in a second
