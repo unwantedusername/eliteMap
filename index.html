@@ -269,7 +269,7 @@ CMDR Anjin 2016
 						else {
 							ctx.fillStyle = loadingPattern;
 							ctx.fillRect(bx, by, sw, sh);
-							setTimeout(refreshView, 1000); // try again in a second
+							setTimeout(loadedRefresh, 1000); // try again in a second
 						}
 					}
 					else {
@@ -451,7 +451,12 @@ CMDR Anjin 2016
 				get("#navHeading").innerText = '';
 			}
 			refreshView();
-		}		
+		}
+		function loadedRefresh() {
+			if (!canvas.drag) {
+				refreshView();
+			}
+		}
 		function resizeCanvas() {
 			viewWidth = window.innerWidth-8;
 			viewHeight = window.innerHeight-8;
