@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<title>Map!</title>
+	<link href='https://fonts.googleapis.com/css?family=Coda' rel='stylesheet' type='text/css'>
+	<style>
+		html, body { margin: 0; padding: 0; background-color: #130909; font-family: 'Coda', sans-serif; }
+		.window { position: absolute; background-color: #DDDDDD; padding: 4px; border-radius: 1px; }
+		.zoomWindow { bottom: 20px; right: 20px; }
+		.coordWindow { bottom: 20px; left: 20px; font-size: small; }
+		.mainWindow { top: 20px; left: 20px; font-size: small; width: 260px; }
+		.keyWindow { bottom: 100px; left: 20px; font-size: small; }
+		.contextWindow { font-size: small; }
+		.boxButton { cursor: pointer; width: 30px; height: 30px; text-align: center; vertical-align: center; font-size: x-large; font-weight: bold; }
+		.boxButton:hover { background-color: #999999; }
+		.button { cursor: pointer; vertical-align: center; }
+		.button:hover { background-color: #999999; }
+		.unselectable { -webkit-touch-callout: none; -webkit-user-select: none; -khtml-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+		.navHeaderBox { width: 80px; float: left; }
+		.navFieldBox { padding-left: 8px; }
+		.navTo { color: #FF9900; }
+		.navFrom { color: #0099FF; }
+		.keyBox { border: 1px solid #000000; }
+		.keyArtifact { background-color: #00FF44; }
+		.keyObelisk { background-color: #0044FF; }
+		.keyMonolith { background-color: #00FFFF; }
+		.logo { float: left; }
+		.title { font-size: medium; padding-top: 6px; }
+		.clearFix { clear: both;}
+	</style>	
+</head>
+<body onresize="resizeCanvas()">
+	<canvas id="viewCanvas">Not supported by your browser.</canvas>
+	<div class="window mainWindow">
+		<img src="images/canonn.png" class="logo"/>
+		<div class="title">
+			CANONN ARCHEOLOGY v0.1b
+		</div>
+		<div class="clearFix"></div>
+		<hr/>
+		<strong>NAVIGATION</strong>
+		<div class="clearFix"></div>
+		<div class="navHeaderBox"><span class="navTo">&bull;</span>&nbsp;TO:
+			<div class="navFieldBox" id="navToLat"></div>
+			<div class="navFieldBox" id="navToLon"></div>
+		</div>
+		<div class="navHeaderBox"><span class="navFrom">&bull;</span>&nbsp;FROM:
+			<div class="navFieldBox" id="navFromLat"></div>
+			<div class="navFieldBox" id="navFromLon"></div>
+		</div>
+		<div class="navHeaderBox">&bull;&nbsp;HEADING:
+			<div class="navFieldBox" id="navHeading"></div>
+		</div>
+		<div class="clearFix"></div>
+		<hr/>
+		<strong>LAYERS</strong>
+		<br/>
+		<input id="chkGrid" type="checkbox" name="chkGrid" onchange="setLayer()" checked>
+		<label for="chkGrid">GRID LINES</label>
+		<br/>
+		<input id="chkCoord" type="checkbox" name="chkCoord" onchange="setLayer()" checked>
+		<label for="chkCoord">COORDINATE LABELS</label>
+		<br/>
+		<input id="chkPOI" type="checkbox" name="chkPOI" onchange="setLayer()" checked>
+		<label for="chkPOI">POINTS OF INTEREST</label>
+	</div>
+	<div class="window zoomWindow">
+		<div class="boxButton unselectable" onclick="zoomIn()">+</div>
+		<div class="boxButton unselectable" onclick="zoomOut()">-</div>
+	</div>
+	<div class="window coordWindow">
+		<strong>APPROX. COORDINATES</strong>
+		<div id="coordLat">0.0000</div>
+		<div id="coordLon">0.0000</div>
+	</div>
+	<div class="window keyWindow">
+		<strong>MAP KEY</strong><br/>
+		<span class="keyBox keyArtifact">&nbsp;&nbsp;&nbsp;</span>&nbsp;ARTIFACT<br/>
+		<span class="keyBox keyObelisk">&nbsp;&nbsp;&nbsp;</span>&nbsp;ACTIVE OBELISK<br/>
+		<span class="keyBox keyMonolith">&nbsp;&nbsp;&nbsp;</span>&nbsp;PILLAR
+	</div>	
+	<div class="window contextWindow" id="contextWindow" style="display:none; top: 0px; left: 0px;">
+		<div id="setTo"	class="button unselectable" onclick="contextMenuItem(this)">SET 'TO' MARKER</div>
+		<div id="setFrom" class="button unselectable" onclick="contextMenuItem(this)">SET 'FROM' MARKER</div>
+		<hr/>
+		<div id="clearTo" class="button unselectable" onclick="contextMenuItem(this)">CLEAR 'TO' MARKER</div>
+		<div id="clearFrom" class="button unselectable" onclick="contextMenuItem(this)">CLEAR 'FROM' MARKER</div>
+	</div>
+	<script type="text/javascript">
+		
+		// all coordinates are approximate
+		var POI = [
+			{ lat: -31.7880, lon: -128.9046, colour: '#00FF44', name: 'TABLET' },
+			{ lat: -31.7937, lon: -128.9079, colour: '#00FF44', name: 'TOTEM' },
+			{ lat: -31.8013, lon: -128.9177, colour: '#00FF44', name: 'TABLET' },
+			{ lat: -31.8111, lon: -128.9219, colour: '#00FF44', name: 'TOTEM' },
+			{ lat: -31.8104, lon: -128.9338, colour: '#00FF44', name: 'URN' },
+			{ lat: -31.8004, lon: -128.9673, colour: '#00FF44', name: 'URN' },
+			{ lat: -31.7888, lon: -128.9594, colour: '#00FF44', name: 'TABLET' },
+			{ lat: -31.7937, lon: -128.9461, colour: '#00FF44', name: 'ORB' },
+			{ lat: -31.7612, lon: -128.9374, colour: '#00FF44', name: 'TOTEM' },
+			{ lat: -31.7577, lon: -128.9347, colour: '#00FF44', name: 'URN' },
+			{ lat: -31.7640, lon: -128.9271, colour: '#00FF44', name: 'ORB' },
+			{ lat: -31.7802, lon: -128.9280, colour: '#00FF44', name: 'ORB' },
+			{ lat: -31.7796, lon: -128.9199, colour: '#00FF44', name: 'CASKET' },
+			{ lat: -31.7864, lon: -128.9280, colour: '#00FF44', name: 'CASKET' },
+			{ lat: -31.7897, lon: -128.9163, colour: '#00FF44', name: 'TABLET' },
+			
+			{ lat: -31.7952, lon: -128.9056, colour: '#0044FF', name: 'ACTIVE OBELISK' },
+			{ lat: -31.8032, lon: -128.9110, colour: '#0044FF', name: 'ACTIVE OBELISK' },
+			{ lat: -31.8188, lon: -128.9308, colour: '#0044FF', name: 'ACTIVE OBELISK' },
+			{ lat: -31.8092, lon: -128.9451, colour: '#0044FF', name: 'ACTIVE OBELISK' },
+			{ lat: -31.8054, lon: -128.9381, colour: '#0044FF', name: 'ACTIVE OBELISK' },
+			{ lat: -31.7879, lon: -128.9713, colour: '#0044FF', name: 'ACTIVE OBELISK' },
+			{ lat: -31.7771, lon: -128.9584, colour: '#0044FF', name: 'ACTIVE OBELISK' },
+			{ lat: -31.7748, lon: -128.9532, colour: '#0044FF', name: 'ACTIVE OBELISK' },
+			{ lat: -31.7837, lon: -128.9469, colour: '#0044FF', name: 'ACTIVE OBELISK' },
+			{ lat: -31.7619, lon: -128.9352, colour: '#0044FF', name: 'ACTIVE OBELISK' },
+			
+			{ lat: -31.7838, lon: -128.9717, colour: '#00FFFF', name: 'PILLAR' },
+			{ lat: -31.8040, lon: -128.9532, colour: '#00FFFF', name: 'PILLAR' },
+			{ lat: -31.8035, lon: -128.9262, colour: '#00FFFF', name: 'PILLAR' },
+			{ lat: -31.8052, lon: -128.9106, colour: '#00FFFF', name: 'PILLAR' }
+		];
+		
+		var canvas, ctx;
+		var viewWidth, viewHeight;
+		var vx1, vy1, vx2, vy2;
+		var z = 10.0;
+		var imageCache = {};
+		var loadingPattern;
+		var loadingPatternImage = new Image();
+		var fromMarkerImage = new Image();
+		var toMarkerImage = new Image();
+		var cursorLat, cursorLon;
+		var drawGrid, drawCoords, drawPOI;
+		var cw;
+		var fromLat, fromLon, toLat, toLon;
+		var deg2rad = Math.PI/180.0;
+		var rad2deg = 180.0/Math.PI;
+		
+		window.onload = function() {
+			canvas = get('#viewCanvas');
+			ctx = canvas.getContext('2d');
+			resizeCanvas();
+
+			toMarkerImage.src = 'images/toMarker.png';
+			fromMarkerImage.src = 'images/fromMarker.png';
+			loadingPatternImage.src = 'images/loading.png';
+			loadingPattern = ctx.createPattern(loadingPatternImage,'repeat');
+			
+			cw = get('#contextWindow');
+			vx1 = vy1 = -50;
+			vx2 = vy2 = 50;
+			drawGrid = drawCoords = drawPOI = true;
+			fromLat = fromLon = toLat = toLon = null;
+			
+			canvas.onmousedown = function(e) {
+				canvas.drag = true;
+				canvas.dsx = e.clientX;
+				canvas.dsy = e.clientY;
+			}
+			canvas.onmouseup = function(e) {
+				canvas.drag = false;
+				vx1 -= ((canvas.dsx - e.clientX)/z);
+				vy1 -= ((canvas.dsy - e.clientY)/z);
+				vx2 -= ((canvas.dsx - e.clientX)/z);
+				vy2 -= ((canvas.dsy - e.clientY)/z);
+				refreshView();
+			}
+			canvas.onmousemove = function(e) {
+				if (canvas.drag) {
+					var nx1 = vx1 - ((canvas.dsx - e.clientX)/z);
+					var ny1 = vy1 - ((canvas.dsy - e.clientY)/z);
+					var nx2 = vx2 - ((canvas.dsx - e.clientX)/z);
+					var ny2 = vy2 - ((canvas.dsy - e.clientY)/z);
+					refreshView(nx1, ny1, nx2, ny2);
+				}
+				calculateCursorCoordiante(e);
+			}
+			canvas.onmouseout = function(e) {
+				if (canvas.drag) {
+					canvas.onmouseup(e);
+				}
+			}
+			canvas.onwheel = canvas.onmousewheel = function(e) {
+				e = e || window.event;
+				var xdiff = ((canvas.centreX - e.clientX)/z);
+				var ydiff = ((canvas.centreY - e.clientY)/z);
+				vx1 += xdiff;
+				vy1 += ydiff;
+				vx2 += xdiff;
+				vy2 += ydiff;
+				canvas.centreX = e.clientX;
+				canvas.centreY = e.clientY;
+				var delta = (typeof(e.deltaY) == 'undefined' ? e.wheelDelta : e.deltaY);
+				if (delta > 0) {
+					z /= 1.1;
+				} else {
+					z *= 1.1;
+				}
+				if (z < 0.5) { z = 0.5; }
+				refreshView();
+				return false;
+			}
+			canvas.oncontextmenu = function(e) {
+				
+				if (cw) {					
+					cw.style.top = (e.clientY-8) + 'px';
+					cw.style.left = (e.clientX-8) + 'px';
+					cw.style.display = 'block';
+				}
+				return false;
+			}
+			cw.onmouseout = function(e) {
+				var ee = e.toElement || e.relatedTarget;
+				if (ee && ee.parentNode == this || ee == this) {
+					return;
+				}
+				cw.style.display = 'none';
+			}
+			setLayer(); // will redraw view
+		}
+		function zoomOut() {
+			z /= 1.1;
+			if (z < 0.5) { z = 0.5; }
+			canvas.centreX = viewWidth/2;
+			canvas.centreY = viewHeight/2;
+			refreshView();
+		}
+		function zoomIn() {
+			z *= 1.1;
+			if (z < 0.5) { z = 0.5; }
+			canvas.centreX = viewWidth/2;
+			canvas.centreY = viewHeight/2;
+			refreshView();
+		}
+		function refreshView(x1 = vx1, y1 = vy1, x2 = vx2, y2 = vy2) {
+			ctx.fillStyle = '#130909';
+			ctx.strokeStyle = '#FFFFFF';
+			ctx.fillRect(0,0,canvas.width,canvas.height);
+			ctx.font = '10px Coda, sans-serif';
+			var w = (x2*z)-(x1*z);
+			var h = (y2*z)-(y1*z);
+			var zl = Math.trunc(Math.log10(z));
+			if (zl > 2) { zl = 2; }
+			var sd = Math.pow(3,zl);
+			var sw = w/sd;
+			var sh = h/sd;
+			ctx.beginPath();
+			for (xd = 0; xd != sd; ++xd) {
+				for (yd = 0; yd != sd; ++yd) {
+					var bx = canvas.centreX+(x1*z)+(xd*sw);
+					var by = canvas.centreY+(y1*z)+(yd*sh);
+					var imageKey = zl.toString() + '/' + xd.toString() + '-' + yd.toString();
+					if (bx <= canvas.width && by <= canvas.height && (bx+sw) >= 0 && (by+sh) >= 0) {
+						if (!(imageKey in imageCache)) {
+							imageCache[imageKey] = new Image();
+							imageCache[imageKey].src = 'map/' + imageKey + '.png';
+						}
+						if (imageKey in imageCache && imageCache[imageKey].complete) {
+							ctx.drawImage(imageCache[imageKey], bx, by, sw+1, sh+1);
+						}
+						else {
+							ctx.fillStyle = loadingPattern;
+							ctx.fillRect(bx, by, sw, sh);
+							setTimeout(refreshView, 1000); // try again in a second
+						}
+					}
+					else {
+						// only want to keep images that are in view per zoom level
+						if (imageKey in imageCache) {
+							imageCache[imageKey] = null;
+							delete imageCache[imageKey];
+							//console.log('cleaned up ' + imageKey);
+							//console.log(Object.keys(imageCache).length + ' objects remaining.');
+						}
+					}
+				}
+			}
+			
+			// anchor point/constants for this exact map image -- other maps will have their own anchor/constants
+			var mapScaleY = 62256;
+			var mapScaleX = 54006;
+			var originLat = -31.8204;
+			var originLon = -128.9288;
+			var originY = (h*0.9160);
+			var originX = (w*0.6191);
+			var originLatY = ((originLat*mapScaleY));
+			var originLatX = ((originLon*mapScaleX));
+			var mapViewScale = w/4800;
+			
+			function latToCanvasY(lat) {
+				return canvas.centreY+(y1*z)+originY-((lat * mapScaleY) - originLatY) * mapViewScale;
+			}
+			function lonToCanvasX(lon) {
+				return canvas.centreX+(x1*z)+originX+((lon * mapScaleX) - originLatX) * mapViewScale;				
+			}
+						
+			ctx.closePath();
+			ctx.stroke();
+			
+			// draw overlays
+			ctx.beginPath();
+			ctx.strokeStyle = '#FFFFFF';
+			ctx.globalAlpha = 0.10;
+			for (lat = 0; lat != 8; ++lat) {
+				var ty = latToCanvasY((-31.75-(lat*0.01)));
+				if (drawGrid) {
+					ctx.moveTo(canvas.centreX+(x1*z), ty);
+					ctx.lineTo(canvas.centreX+(x1*z)+w, ty);
+				}
+				if (z > 4 && drawCoords) {
+					ctx.strokeText((-31.75-(lat*0.01)).toFixed(2), canvas.centreX+(x1*z)+w, ty+12);
+				}
+			}
+			for (lon = 0; lon != 9; ++lon) {
+				var tx = lonToCanvasX((-128.98+(lon*0.01)));
+				if (drawGrid) {
+					ctx.moveTo(tx, canvas.centreY+(y1*z));
+					ctx.lineTo(tx, canvas.centreY+(y1*z)+h);
+				}
+				if (z > 4 && drawCoords) {
+					ctx.strokeText((-128.98+(lon*0.01)).toFixed(2), tx+4, canvas.centreY+(y1*z)+h+12);
+				}
+			}
+			if (z > 20 && drawCoords) {
+				for (lat = 0; lat != 8; ++lat) {
+					var ty = latToCanvasY((-31.75-(lat*0.01)));
+					for (lon = 0; lon != 9; ++lon) {
+						var tx = lonToCanvasX((-128.98+(lon*0.01)));
+						ctx.strokeText((-31.75-(lat*0.01)).toFixed(2), tx+4, ty+12);
+						ctx.strokeText((-128.98+(lon*0.01)).toFixed(2), tx+4, ty+24);
+					}
+				}
+			}
+			ctx.closePath();
+			ctx.stroke();
+			
+			// draw POIs
+			ctx.beginPath();
+			ctx.globalAlpha = 1.0;			
+			if (drawPOI) {
+				for (p = 0; p != POI.length; ++p) {
+					var py = latToCanvasY(POI[p].lat);
+					var px = lonToCanvasX(POI[p].lon);
+					ctx.fillStyle = ctx.strokeStyle = POI[p].colour;
+					ctx.fillRect(px-2,py-2,4,4);
+					if (z > 20) {
+						 ctx.strokeText(POI[p].name,px+8,py+2);
+					}
+					
+				}
+			}
+			// draw pins
+			if (toLat && toLon) {
+				var py = latToCanvasY(toLat);
+				var px = lonToCanvasX(toLon);
+				//ctx.fillStyle = ctx.strokeStyle = '#FF9900';
+				//ctx.fillRect(px-2,py-2,4,4);
+				ctx.drawImage(toMarkerImage,px-4,py-16);
+			}
+			if (fromLat && fromLon) {
+				var py = latToCanvasY(fromLat);
+				var px = lonToCanvasX(fromLon);
+				//ctx.fillStyle = ctx.strokeStyle = '#0099FF';
+				//ctx.fillRect(px-2,py-2,4,4);
+				ctx.drawImage(fromMarkerImage,px-4,py-16);
+			}
+			if (toLat && toLon && fromLat && fromLon) {
+				var py1 = latToCanvasY(toLat);
+				var px1 = lonToCanvasX(toLon);
+				var py2 = latToCanvasY(fromLat);
+				var px2 = lonToCanvasX(fromLon);
+				ctx.strokeStyle = '#FFFFFF';
+				ctx.setLineDash([1,10]);
+				ctx.moveTo(px1, py1);
+				ctx.lineTo(px2, py2);
+			}
+
+			ctx.closePath();
+			ctx.stroke();
+			ctx.setLineDash([]);
+			ctx.globalAlpha = 1.0;
+
+			// store some values for calculations
+			canvas.viewTop = canvas.centreY+(y1*z);
+			canvas.viewLeft = canvas.centreX+(x1*z);
+			canvas.viewWidth = w;
+			canvas.viewHeight = h;
+		}
+		function calculateCursorCoordiante(e) {
+			// these constants are for this exact map -- other maps will have there own constants
+			// top == -31.74977
+			// bottom == -31.82688
+			// left == -128.983825
+			// right = -128.894946
+		
+			var latRate = -0.07711; // difference between top/bottom
+			var lonRate = -0.088879; // difference between left/right
+			cursorLon = -128.983825 - (((e.clientX-canvas.viewLeft)/canvas.viewWidth)*lonRate);
+			cursorLat = -31.74977 + (((e.clientY-canvas.viewTop)/canvas.viewHeight)*latRate);
+			get('#coordLat').innerText = cursorLat.toFixed(4);
+			get('#coordLon').innerText = cursorLon.toFixed(4);
+		}
+		function setLayer() {
+			drawGrid = get('#chkGrid').checked;
+			drawCoords = get('#chkCoord').checked;
+			drawPOI = get('#chkPOI').checked;
+			refreshView();
+		}
+		function contextMenuItem(o) {
+			if (o.id == 'setFrom') {
+				fromLat = cursorLat;
+				fromLon = cursorLon;
+			}
+			if (o.id == 'setTo') {
+				toLat = cursorLat;
+				toLon = cursorLon;
+			}
+			if (o.id == 'clearFrom') {
+				fromLat = fromLon = null;
+			}
+			if (o.id == 'clearTo') {
+				toLat = toLon = null;
+			}
+			cw.style.display = 'none';
+			if (fromLat && fromLon) {
+				get("#navFromLat").innerText = fromLat.toFixed(4);
+				get("#navFromLon").innerText = fromLon.toFixed(4);
+			} 
+			else {
+				get("#navFromLat").innerText = get("#navFromLon").innerText = '';
+			}
+			if (toLat && toLon) {
+				get("#navToLat").innerText = toLat.toFixed(4);
+				get("#navToLon").innerText = toLon.toFixed(4);
+			} 
+			else {
+				get("#navToLat").innerText = get("#navToLon").innerText = '';
+			}
+			if (toLat && toLon && fromLat && fromLon) {
+				var deltaLon = (toLon - fromLon);
+				var y = Math.sin(deltaLon*deg2rad) * Math.cos(toLat*deg2rad);
+				var x = Math.cos(fromLat*deg2rad) * Math.sin(toLat*deg2rad) - Math.sin(fromLat*deg2rad) * Math.cos(fromLat*deg2rad) * Math.cos(deltaLon*deg2rad);
+				var h = Math.atan2(y, x) * rad2deg;
+				get("#navHeading").innerHTML = (((h%360.0)+360.0)%360.0).toFixed(3) + "&deg;";
+			}
+			else {
+				get("#navHeading").innerText = '';
+			}
+			refreshView();
+		}		
+		function resizeCanvas() {
+			viewWidth = window.innerWidth-8;
+			viewHeight = window.innerHeight-8;
+			canvas.width = viewWidth;
+			canvas.height = viewHeight;
+			canvas.centreX = viewWidth/2;
+			canvas.centreY = viewHeight/2;
+			refreshView();
+		}
+		function get(q) { return document.querySelector(q); }
+</script>
+</body>
+</html>
