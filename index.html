@@ -1,8 +1,12 @@
+<!--
+Elite Map v0.1b "Canonn Archeology" Edition
+CMDR Anjin 2016
+-->
 <!DOCTYPE html>
 <html>
 <head>
 	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
-	<title>Map!</title>
+	<title>Elite Map v0.1b - Canonn Archeology</title>
 	<link href='https://fonts.googleapis.com/css?family=Coda' rel='stylesheet' type='text/css'>
 	<style>
 		html, body { margin: 0; padding: 0; background-color: #130909; font-family: 'Coda', sans-serif; }
@@ -31,7 +35,7 @@
 	</style>	
 </head>
 <body onresize="resizeCanvas()">
-	<canvas id="viewCanvas">Not supported by your browser.</canvas>
+	<canvas id="viewCanvas" class="unselectable">Not supported by your browser.</canvas>
 	<div class="window mainWindow">
 		<img src="images/canonn.png" class="logo"/>
 		<div class="title">
@@ -257,7 +261,7 @@
 					if (bx <= canvas.width && by <= canvas.height && (bx+sw) >= 0 && (by+sh) >= 0) {
 						if (!(imageKey in imageCache)) {
 							imageCache[imageKey] = new Image();
-							imageCache[imageKey].src = 'map/' + imageKey + '.png';
+							imageCache[imageKey].src = 'map/' + imageKey + '.jpg';
 						}
 						if (imageKey in imageCache && imageCache[imageKey].complete) {
 							ctx.drawImage(imageCache[imageKey], bx, by, sw+1, sh+1);
@@ -357,15 +361,11 @@
 			if (toLat && toLon) {
 				var py = latToCanvasY(toLat);
 				var px = lonToCanvasX(toLon);
-				//ctx.fillStyle = ctx.strokeStyle = '#FF9900';
-				//ctx.fillRect(px-2,py-2,4,4);
 				ctx.drawImage(toMarkerImage,px-4,py-16);
 			}
 			if (fromLat && fromLon) {
 				var py = latToCanvasY(fromLat);
 				var px = lonToCanvasX(fromLon);
-				//ctx.fillStyle = ctx.strokeStyle = '#0099FF';
-				//ctx.fillRect(px-2,py-2,4,4);
 				ctx.drawImage(fromMarkerImage,px-4,py-16);
 			}
 			if (toLat && toLon && fromLat && fromLon) {
