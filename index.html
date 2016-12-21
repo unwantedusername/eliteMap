@@ -16,12 +16,18 @@ CMDR Anjin 2016
 		.coordWindow { bottom: 20px; left: 20px; font-size: small; }
 		.mainWindow { top: 20px; left: 20px; font-size: small; width: 260px; }
 		.keyWindow { bottom: 100px; left: 20px; font-size: small; }
+		.toolWindow { top: 20px; right: 20px; font-size: small; width: 300px; }
 		.contextWindow { font-size: small; }
 		.boxButton { cursor: pointer; width: 30px; height: 30px; text-align: center; vertical-align: center; font-size: x-large; font-weight: bold; }
 		.boxButton:hover { background-color: #999999; }
-		.button { cursor: pointer; vertical-align: center; }
+		.button { cursor: pointer; vertical-align: center; border: none; }
 		.button:hover { background-color: #999999; }
+		.tabSelected { border-style: solid; border-color: black; border-width: 1px 1px 0 1px; float: left; padding: 0 8px 0 8px; margin-bottom: 4px; }
+		.tabUnselected { border-bottom: 1px solid black; float: left; padding: 0 8px 0 8px; margin-bottom: 4px; }
 		.unselectable { -webkit-touch-callout: none; -webkit-user-select: none; -khtml-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+		.codeErrorBox { font-size: small; color: #FF0000; }
+		.codeInfoBox { font-size: x-small; }
+		.codeRunButton { float: right; width: 96px; height: 32px; }
 		.navHeaderBox { width: 80px; float: left; }
 		.navFieldBox { padding-left: 8px; }
 		.navTo { color: #FF9900; }
@@ -33,7 +39,9 @@ CMDR Anjin 2016
 		.logo { float: left; }
 		.title { font-size: medium; padding-top: 6px; }
 		.clearFix { clear: both;}
-	</style>	
+		#drawCode { font-size: 10px; }
+		.infoImage { max-width: 290px; }
+	</style>
 </head>
 <body onresize="resizeCanvas()">
 	<canvas id="viewCanvas" class="unselectable">Not supported by your browser.</canvas>
@@ -91,6 +99,37 @@ CMDR Anjin 2016
 		<hr/>
 		<div id="clearTo" class="button unselectable" onclick="contextMenuItem(this)">CLEAR 'TO' MARKER</div>
 		<div id="clearFrom" class="button unselectable" onclick="contextMenuItem(this)">CLEAR 'FROM' MARKER</div>
+		<hr id="codeOptions" style="display:none;"/>
+		<div id="coordToCode" style="display:none;" class="button unselectable" onclick="contextMenuItem(this)">COORD TO CODE</div>
+		</div>
+	</div>
+	<div class="window toolWindow" id="toolWindow">
+		<div id="tabGroup">
+			<div id="tabInfo" class="button unselectable tabSelected" onclick="tabClick(this)" data-target="panelInfo" data-parent="panelGroup">INFO</div>
+			<div id="tabCode" class="button unselectable tabUnselected" onclick="tabClick(this)" data-target="panelCode" data-parent="panelGroup">CODE</div>
+		</div>
+		<div class="clearFix"></div>
+		<div id="panelGroup">
+			<div id="panelInfo" style="display:block;">
+				...
+			</div>
+			<div id="panelCode" style="display:none;">
+				<textarea id="drawCode" cols="45" rows="20"></textarea>
+				<div class="codeErrorBox" id="codeErrorBox"></div>
+				<div class="clearFix"></div>
+				<input type="button" value="REFRESH" class="button codeRunButton" onclick="refreshView()">
+				<div class="codeInfoBox">
+					<em>Command list:</em><br/>
+					colour &lt;html colour code/name&gt;<br/>
+					moveTo &lt;latitute&gt; &ltlongitude&gt;<br/>
+					lineTo &lt;latitute&gt; &ltlongitude&gt;<br/>
+					heading &lt;latitute1&gt; &ltlongitude1&gt; &lt;latitute2&gt; &ltlongitude2&gt;<br/>
+				</div>
+				<hr/>
+				<input id="chkClickCoord" type="checkbox" name="chkClickCoord" onclick="setCodeOption()">
+				<label for="chkClickCoord">COORDINATE-TO-CODE IN CONTEXT MENU</label>
+			</div>
+		</div>
 	</div>
 	<script type="text/javascript">
 		
@@ -133,6 +172,7 @@ CMDR Anjin 2016
 		var viewWidth, viewHeight;
 		var vx1, vy1, vx2, vy2;
 		var z = 10.0;
+		var imageRefresh = false;
 		var imageCache = {};
 		var loadingPattern;
 		var loadingPatternImage = new Image();
@@ -270,7 +310,10 @@ CMDR Anjin 2016
 							loadingPattern = ctx.createPattern(loadingPatternImage,'repeat');
 							ctx.fillStyle = loadingPattern;
 							ctx.fillRect(bx, by, sw, sh);
-							setTimeout(loadedRefresh, 1000); // try again in a second
+							if (!imageRefresh) {
+								imageRefresh = true;
+								setTimeout(loadedRefresh, 1000); // try again in a second
+							}
 						}
 					}
 					else {
@@ -390,6 +433,100 @@ CMDR Anjin 2016
 			canvas.viewLeft = canvas.centreX+(x1*z);
 			canvas.viewWidth = w;
 			canvas.viewHeight = h;
+			
+			// parse/draw code in code box (if there)			
+			var code = get('#drawCode').value;
+			var commands = code.split('\n').filter(function(i){return i});
+			if (commands.length > 0) {
+				var error = '';
+				var exit = false;
+				ctx.save();
+				ctx.beginPath();
+				for (n = 0; n != commands.length && !exit; ++n) {
+					tokens = commands[n].split(' ').filter(function(i){return i});
+					if (tokens.length > 0) {
+						switch (tokens[0].toLowerCase()) {
+							case 'colour':
+							case 'color':
+								if (tokens.length < 2) {
+									error = 'Line' + (n+1) + ': colour expects 1 parameter';
+									exit = true;
+								}
+								ctx.closePath();
+								ctx.stroke();
+								ctx.beginPath();
+								ctx.strokeStyle = tokens[1];
+								break;
+							case 'moveto':
+								if (tokens.length < 3) {
+									error = 'Line' + (n+1) + ': moveTo expects 2 parameters';
+									exit = true;
+								}
+								for (p = 1; p != 3; ++p) {
+									if (!isNumber(tokens[p])) {
+										error = 'Line' + (n+1) + ': parameter ' + p + ' to moveTo is not a number';
+										exit = true;
+									}
+								}
+								var ty = latToCanvasY(tokens[1]);
+								var tx = lonToCanvasX(tokens[2]);
+								ctx.moveTo(tx,ty);
+								break;
+							case 'lineto':
+								if (tokens.length < 3) {
+									error = 'Line' + (n+1) + ': lineTo expects 2 parameters';
+									exit = true;
+								}
+								for (p = 1; p != 3; ++p) {
+									if (!isNumber(tokens[p])) {
+										error = 'Line' + (n+1) + ': parameter ' + p + ' to lineTo is not a number';
+										exit = true;
+									}
+								}
+								var ty = latToCanvasY(tokens[1]);
+								var tx = lonToCanvasX(tokens[2]);
+								ctx.lineTo(tx,ty);
+								break;
+							case 'heading':
+								if (tokens.length < 5) {
+									error = 'Line' + (n+1) + ': heading expects 4 parameters';
+									exit = true;
+								}
+								for (p = 1; p != 4; ++p) {
+									if (!isNumber(tokens[p])) {
+										error = 'Line' + (n+1) + ': parameter ' + p + ' to lineTo is not a number';
+										exit = true;
+									}
+								}
+								var ty1 = latToCanvasY(tokens[1]);
+								var tx1 = lonToCanvasX(tokens[2]);
+								var ty2 = latToCanvasY(tokens[3]);
+								var tx2 = lonToCanvasX(tokens[4]);
+								var hy = (Math.abs(ty1-ty2)/2) + (ty1 < ty2 ? ty1 : ty2);
+								var hx = (Math.abs(tx1-tx2)/2) + (tx1 < tx2 ? tx1 : tx2);
+								ctx.setLineDash([2,5]);
+								ctx.arc(tx1,ty1,5,0,Math.PI*2,false);
+								ctx.moveTo(tx1,ty1);
+								ctx.lineTo(tx2,ty2);
+								ctx.closePath();
+								ctx.stroke();
+								ctx.beginPath();
+								ctx.setLineDash([]);
+								ctx.strokeText(calculateBearing(tokens[1],tokens[2],tokens[3],tokens[4]).replace('&deg;','°'), hx, hy);
+								
+								break;
+							default:
+								error = 'Line ' + (n+1) + ': Unknown command "' + tokens[0] + '"';
+								exit = true;
+								break;
+						}
+					}
+				}
+				ctx.closePath();
+				ctx.stroke();
+				ctx.restore();
+				get('#codeErrorBox').innerText = error;
+			}
 		}
 		function calculateCursorCoordiante(e) {
 			// these constants are for this exact map -- other maps will have there own constants
@@ -411,6 +548,27 @@ CMDR Anjin 2016
 			drawPOI = get('#chkPOI').checked;
 			refreshView();
 		}
+		function setCodeOption() {
+			if(get('#chkClickCoord').checked) {
+				get('#codeOptions').style.display = 'block';
+				get('#coordToCode').style.display = 'block';
+			}
+			else {
+				get('#codeOptions').style.display = 'none';
+				get('#coordToCode').style.display = 'none';
+			}
+		}
+		function tabClick(o) {
+			var target = get('#'+o.getAttribute('data-target'));
+			var parent = get('#'+o.getAttribute('data-parent'));
+			for (n = 0; n != o.parentNode.children.length; ++n) {
+				o.parentNode.children[n].className = 'button unselectable tabUnselected';
+			}
+			o.className = 'button unselectable tabSelected';
+			for (n = 0; n != parent.children.length; ++n)
+				parent.children[n].style.display = 'none';
+			target.style.display = 'block';
+		}
 		function contextMenuItem(o) {
 			if (o.id == 'setFrom') {
 				fromLat = cursorLat;
@@ -426,37 +584,44 @@ CMDR Anjin 2016
 			if (o.id == 'clearTo') {
 				toLat = toLon = null;
 			}
+			if (o.id == 'coordToCode') {
+				get('#drawCode').value += cursorLat.toFixed(4) + ' ' + cursorLon.toFixed(4);
+			}
 			cw.style.display = 'none';
 			if (fromLat && fromLon) {
-				get("#navFromLat").innerText = fromLat.toFixed(4);
-				get("#navFromLon").innerText = fromLon.toFixed(4);
+				get('#navFromLat').innerText = fromLat.toFixed(4);
+				get('#navFromLon').innerText = fromLon.toFixed(4);
 			} 
 			else {
-				get("#navFromLat").innerText = get("#navFromLon").innerText = '';
+				get('#navFromLat').innerText = get('#navFromLon').innerText = '';
 			}
 			if (toLat && toLon) {
-				get("#navToLat").innerText = toLat.toFixed(4);
-				get("#navToLon").innerText = toLon.toFixed(4);
+				get('#navToLat').innerText = toLat.toFixed(4);
+				get('#navToLon').innerText = toLon.toFixed(4);
 			} 
 			else {
-				get("#navToLat").innerText = get("#navToLon").innerText = '';
+				get('#navToLat').innerText = get('#navToLon').innerText = '';
 			}
+			get('#navHeading').innerHTML = calculateBearing(fromLat, fromLon, toLat, toLon);
+			refreshView();
+		}
+		function calculateBearing(fromLat, fromLon, toLat, toLon) {
 			if (toLat && toLon && fromLat && fromLon) {
 				var deltaLon = (toLon - fromLon);
 				var y = Math.sin(deltaLon*deg2rad) * Math.cos(toLat*deg2rad);
 				var x = Math.cos(fromLat*deg2rad) * Math.sin(toLat*deg2rad) - Math.sin(fromLat*deg2rad) * Math.cos(fromLat*deg2rad) * Math.cos(deltaLon*deg2rad);
 				var h = Math.atan2(y, x) * rad2deg;
-				get("#navHeading").innerHTML = (((h%360.0)+360.0)%360.0).toFixed(3) + "&deg;";
+				return (((h%360.0)+360.0)%360.0).toFixed(3) + '&deg;';
 			}
 			else {
-				get("#navHeading").innerText = '';
+				return '';
 			}
-			refreshView();
 		}
 		function loadedRefresh() {
 			if (!canvas.drag) {
 				refreshView();
 			}
+			imageRefresh = false;
 		}
 		function resizeCanvas() {
 			viewWidth = window.innerWidth-8;
@@ -466,6 +631,9 @@ CMDR Anjin 2016
 			canvas.centreX = viewWidth/2;
 			canvas.centreY = viewHeight/2;
 			refreshView();
+		}
+		function isNumber(n) {
+			return !isNaN(parseFloat(n)) && isFinite(n);
 		}
 		function get(q) { return document.querySelector(q); }
 </script>
